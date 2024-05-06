@@ -1,0 +1,497 @@
+---
+title: "Chicago Crime Rate Prediction"
+output:
+  html_document:
+    df_print: paged
+---
+
+1.Data Collection and Cleaning:
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(caret)
+
+crime_data <- read.csv("C:/Users/satta/Downloads/crime data set git/Chicago_crime_dataset.csv")
+weather_data<-read.csv("C:/Users/satta/Downloads/crime data set git/Temperature_dataset.csv")
+
+crime_data$Date <- as.POSIXct(crime_data$Date, format = "%m/%d/%Y %H:%M")
+crime_data$Date <- as.Date(crime_data$Date)
+crime_data$Time <- format(crime_data$Date, "%H:%M:%S")
+crime_data$Date <- format(crime_data$Date, "%m-%d-%Y")
+
+
+
+
+#summary(crime_data,n=10)
+head(weather_data,n=10)
+```
+```{r}
+crime_data <- left_join(crime_data, weather_data, by ="Date")
+head(crime_data,n=10)
+final <- crime_data %>%
+  group_by(Date) %>%
+  summarise(
+    
+    Temp = first(temp),  
+    Snow=first(snow),
+    Humidity = first(humidity),  # Assuming humidity is constant for a given date
+    Precip = first(precip),
+    Crime_Count = n()
+  )
+crime_data <- left_join(crime_data, final, by ="Date")
+head(crime_data,n=10)
+
+```
+```{r}
+# Handle missing values
+# For numerical columns, fill NA with the mean or median
+crime_data <- crime_data %>% mutate(across(where(is.numeric), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .)))
+missing_values <- is.na(crime_data)
+```
+
+2.Exploratory Data Analysis (EDA):
+```{r}
+# Load the required libraries
+library(tidyverse)
+library(ggplot2)
+
+# Convert the 'Date' column to datetime
+crime_data$Date <- as.Date(crime_data$Date)
+
+# Set the plot style
+theme_set(theme_minimal())
+
+# Plotting the distribution of incidents over time
+ggplot(crime_data, aes(x = Date)) +
+  geom_line(stat = 'count') +
+  labs(title = 'Distribution of Crime Incidents Over Time',
+       x = 'Date',
+       y = 'Number of Incidents') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+
+```{r}
+# Install and load necessary libraries if not already installed
+if (!requireNamespace("ggplot2", quietly = TRUE)) {
+  install.packages("ggplot2")
+}
+library(ggplot2)
+
+# Assuming your dataset is named crime_data
+# Create a bar plot of crime distribution
+ggplot(crime_data, aes(x = Location.Description)) +
+  geom_bar() +
+  labs(title = "Crime Distribution",
+       x = "Crime Type",
+       y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better readability
+
+# Distribution of crime types
+ggplot(crime_data, aes(x = Primary.Type)) +
+  geom_bar() +
+  labs(title = "Distribution of Crime Types",
+       x = "Crime Type",
+       y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+```{r}
+# Load the required libraries
+library(tidyverse)
+
+# Plotting the distribution of Primary Type and Location Description
+par(mfrow=c(2,1), mar=c(4,5,4,2))
+
+# Plot for Primary Type
+crime_data %>%
+  count(Primary.Type) %>%
+  arrange(desc(n)) %>%
+  slice_head(n = 20) %>%
+  ggplot(aes(y = n, x = reorder(Primary.Type, n), fill = Primary.Type)) +
+  geom_bar(stat = 'identity') +
+  labs(title = 'Top 20 Crime Types',
+       y = 'Frequency',
+       x = 'Primary Type') +
+  theme_minimal() +
+  theme(legend.position = 'none') +
+  coord_flip()
+
+# Plot for Location Description
+crime_data %>%
+  count(Location.Description) %>%
+  arrange(desc(n)) %>%
+  slice_head(n = 20) %>%
+  ggplot(aes(y = n, x = reorder(Location.Description, n), fill = Location.Description)) +
+  geom_bar(stat = 'identity') +
+  labs(title = 'Top 20 Crime Locations',
+       y = 'Frequency',
+       x = 'Location Description') +
+  theme_minimal() +
+  theme(legend.position = 'none') +
+  coord_flip()
+
+```
+```{r}
+# Weather conditions
+weather_cols <- c('Temp', 'Snow', 'Humidity', 'Precip')
+
+crime_data %>%
+  gather(key = 'Weather', value = 'Value', weather_cols) %>%
+  ggplot(aes(x = Value)) +
+  geom_histogram(bins = 30, fill = 'blue', color = 'black', alpha = 0.7) +
+  facet_wrap(~Weather, scales = 'free') +
+  labs(title = 'Distribution of Weather Conditions')
+```
+```{r}
+# Install and load necessary libraries if not already installed
+if (!requireNamespace("tidyverse", quietly = TRUE)) {
+  install.packages("tidyverse")
+}
+library(tidyverse)
+
+
+
+# Check the structure of the dataset
+str(crime_data)
+
+# Summary statistics
+summary(crime_data)
+
+# Missing values
+missing_values <- colSums(is.na(crime_data))
+print("Missing Values:")
+print(missing_values[missing_values > 0])
+
+# Unique values in categorical columns
+print("Unique Values in Categorical Columns:")
+sapply(crime_data[, sapply(crime_data, is.factor)], function(x) length(unique(x)))
+
+
+# Distribution of crime counts by month
+crime_data$Date <- as.Date(crime_data$Date, format = "%m-%d-%Y")
+crime_data$Month <- format(crime_data$Date, "%Y-%m")
+
+
+
+
+# Visualize geographic patterns
+crime_map <- ggplot(crime_data, aes(x = Longitude, y = Latitude)) +
+  geom_point(alpha = 0.5, size = 1, color = "red") +
+  ggtitle("Crime Map")
+
+print(crime_map)
+
+# Correlation matrix
+library(GGally)
+
+weather_data <- crime_data[, c("Temp", "Snow", "Humidity", "Precip", "Crime_Count")]
+cor(weather_data)
+ggpairs(crime_data,columns=c("Temp", "Snow", "Humidity", "Precip", "Crime_Count"))
+
+```
+```{r}
+# Load necessary libraries
+library(tidyverse)
+
+# Convert the 'Date' column to a Date type
+crime_data$Date <- as.Date(crime_data$Date, format = "%m-%d-%Y")
+
+# Filter for specific crime types (theft, criminal damage, assault)
+filtered_data <- crime_data %>%
+  filter(Primary.Type %in% c("THEFT", "CRIMINAL DAMAGE", "ASSAULT"))
+
+# Aggregate the data by date and crime type
+crime_counts <- filtered_data %>%
+  group_by(Date, Primary.Type) %>%
+  summarise(CrimeCount = n())
+
+# Plot the graph with log scale on the y-axis
+ggplot(crime_counts, aes(x = Date, y = log(CrimeCount), color = Primary.Type)) +
+  geom_line() +
+  labs(title = "Number of Crimes vs. Date",
+       x = "Date",
+       y = "Log of Number of Crimes",
+       color = "Crime Type") +
+  scale_y_continuous(labels = scales::comma) +  # Add comma separator for y-axis labels
+  theme_minimal()
+```
+```{r}
+# Plot the distribution of incidents across Beat
+ggplot(crime_data, aes(x = Beat)) +
+  geom_bar(fill = "skyblue", color = "black") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Distribution of Incidents Across Beat", x = "Beat", y = "Count")
+
+```
+```{r}
+# Load necessary libraries
+library(tibble)
+library(dplyr)
+
+# Define the public holidays
+public_holidays_data <- tibble(
+  Date = as.Date(c(
+    "2021-01-01", "2021-01-18", "2021-02-15", "2021-05-31", "2021-07-05",
+    "2021-09-06", "2021-10-11", "2021-11-11", "2021-11-25", "2021-12-25",
+    "2022-01-01", "2022-01-17", "2022-02-21", "2022-05-30", "2022-07-04",
+    "2022-09-05", "2022-10-10", "2022-11-11", "2022-11-24", "2022-12-26"
+  )),
+  Holiday = c(
+    "New Year's Day", "Martin Luther King Jr. Day", "Presidents' Day",
+    "Memorial Day", "Independence Day", "Labor Day", "Columbus Day",
+    "Veterans Day", "Thanksgiving Day", "Christmas Day",
+    "New Year's Day", "Martin Luther King Jr. Day", "Presidents' Day",
+    "Memorial Day", "Independence Day", "Labor Day", "Columbus Day",
+    "Veterans Day", "Thanksgiving Day", "Christmas Day (Observed)"
+  )
+)
+
+# Display the public holidays dataframe
+print(public_holidays_data)
+
+```
+
+3.MODELING:
+Given the nature of your project, I assume you might be interested in predicting the Crime_Count based on other variables like Temp, Snow, Humidity, Precip, and possibly time-related variables (like the date or year).
+
+
+
+Linear Regression: To model the relationship between Crime_Count and other independent variables using a linear approach.
+Random Forest Regression: To model the same relationship but using a non-linear, ensemble-based approach.
+
+a. Linear Regression in R
+For linear regression, you can use the lm() function in R. Here's an example of how you might set up a linear regression model to predict Crime_Count based on certain variables:
+```{r}
+library(readr)
+head(crime_data)
+
+set.seed(42) # For reproducibility
+trainIndex <- createDataPartition(crime_data$Crime_Count, p = 0.8, 
+                                  list = FALSE, 
+                                  times = 1)
+dataTrain <- crime_data[trainIndex, ]
+dataTest <- crime_data[-trainIndex, ]
+
+# Model training
+model <- lm(lag(Crime_Count) ~ Temp + Snow + Humidity + Precip, data = dataTrain)
+summary(model)
+
+lr_predictions <- predict(model, dataTest)
+mse <- mean((lr_predictions - dataTest$Crime_Count)^2)
+rsq <- summary(model)$r.squared
+
+# Output the MSE and R-squared
+print(paste("Mean Squared Error:", mse))
+print(paste("R-squared:", rsq))
+```
+Mean Absolute Error (MAE): It measures the average absolute differences between the predicted values and the actual values. Smaller MAE values indicate better model accuracy.
+
+Root Mean Squared Error (RMSE): It is similar to MAE but gives more weight to large errors. RMSE is the square root of the mean of the squared differences between predicted and actual values. Like MAE, lower RMSE values indicate better model accuracy.
+
+```{r}
+# Ensure the Date column is correctly formatted and free of NAs
+crime_data <- crime_data %>% 
+  mutate(Date = as.Date(Date)) %>%
+  filter(!is.na(Date), !is.na(Crime_Count))
+
+# Checking and printing minimum date values
+min_year <- year(min(crime_data$Date))
+min_month <- month(min(crime_data$Date))
+print(paste("Using start year:", min_year, "and start month:", min_month))
+
+# Assuming monthly data
+ts_data <- ts(crime_data$Crime_Count, start = c(min_year, min_month), frequency = 12)
+
+```
+
+
+b. ARIMA Model
+
+```{r}
+library(readr)
+library(dplyr)
+library(lubridate)
+library(forecast)
+library(ggplot2)
+
+# Ensure the Date column is a Date type
+crime_data$Date <- as.Date(crime_data$Date)
+
+# Check for any NA in Date or Crime_Count
+sum(is.na(crime_data$Date))
+sum(is.na(crime_data$Crime_Count))
+
+# Assuming monthly data, adjust frequency to 12
+ts_data <- ts(crime_data$Crime_Count, start = c(year(min(crime_data$Date)), month(min(crime_data$Date))), frequency = 12)
+
+regressor_columns <- c("Temp","Snow","Humidity","Precip")
+
+# Ensure no NAs in regressors
+crime_data <- crime_data %>%
+  filter(complete.cases(.[regressor_columns]))
+
+model <- auto.arima(ts_data, xreg = as.matrix(crime_data[, regressor_columns, drop = FALSE]))
+summary(model)
+
+forecast_values <- forecast(model, xreg = as.matrix(crime_data[, regressor_columns, drop = FALSE]), h = nrow(crime_data))
+plot(forecast_values, main = "ARIMA Forecast with Independent Variables",
+     ylab = "Crime Count", xlab = "Days", xlim = c(min(time(ts_data)), max(time(ts_data))),
+     ylim = c(0, max(forecast_values$upper[,2], ts_data))/4)
+
+lines(ts_data, col = "red")
+legend("topright", legend = c("Actual", "Forecast"), col = c("red", "blue"))
+
+
+```
+```{r}
+crime_ts <- ts(crime_data$Crime_Count, frequency = 365) # Assuming daily data
+
+decomposition <- decompose(crime_ts)
+plot(decomposition)
+```
+ARIMA RELATED GRAPHS:
+
+```{r}
+# Load necessary libraries
+library(readr)
+library(dplyr)
+library(lubridate)
+library(tseries)
+library(forecast)
+library(ggplot2)
+
+crime_ts <- ts(crime_data$Crime_Count, start = c(year(min(crime_data$Date)), month(min(crime_data$Date))), frequency = 1)
+
+# Augmented Dickey-Fuller Test
+adf_test <- adf.test(crime_ts, alternative = "stationary")
+
+# Differencing the series if not stationary
+if (adf_test$p.value > 0.05) {
+  crime_ts_diff <- diff(crime_ts)
+  adf_test_diff <- adf.test(crime_ts_diff, alternative = "stationary")
+}
+
+# Plotting the original and differenced series
+ts.plot(crime_ts, main="Original Crime Count Time Series", ylab="Crime Count", xlab="Time")
+if (exists("crime_ts_diff")) {
+  ts.plot(crime_ts_diff, main="Differenced Crime Count Time Series", ylab="Differenced Crime Count", xlab="Time")
+}
+
+# ACF and PACF plots
+#Acf(crime_ts_diff, main="ACF of Differenced Series")
+#Pacf(crime_ts_diff, main="PACF of Differenced Series")
+
+
+```
+c. RANDOM FOREST REGRESSION MODEL:
+```{r}
+# Load necessary libraries
+library(readr)
+library(dplyr)
+library(lubridate)
+library(randomForest)
+library(caret)
+
+# Set seed for reproducibility
+set.seed(42)
+
+# Calculate the size of the training set (80% of the dataset)
+training_size <- floor(0.8 * nrow(crime_data))
+
+# Randomly sample row indices for the training set
+training_indices <- sample(seq_len(nrow(crime_data)), size = training_size)
+
+# Create training and testing sets
+trainingSet <- crime_data[training_indices, ]
+testingSet <- crime_data[-training_indices, ]
+
+
+# Ensure that Crime_Count and other predictors are numeric
+
+trainingSet$Temp <- as.numeric(trainingSet$Temp)
+trainingSet$Snow <- as.numeric(trainingSet$Snow)
+trainingSet$Humidity <- as.numeric(trainingSet$Humidity)
+trainingSet$Precip <- as.numeric(trainingSet$Precip)
+
+
+# Random Forest model training
+rf_model <- randomForest(Crime_Count ~Temp + Snow + Humidity + Precip , data = trainingSet, ntree = 100)
+
+# Model prediction and evaluation
+rf_predictions <- predict(rf_model, testingSet)
+mse <- mean((rf_predictions - testingSet$Crime_Count)^2)
+rsq <- cor(rf_predictions, testingSet$Crime_Count)^2
+
+# Output the MSE and R-squared
+print(paste("Mean Squared Error:", mse))
+print(paste("R-squared:", rsq))
+
+
+```
+PREDICTION:
+```{r}
+
+# Now, let's say you have a new data point for which you want to make predictions:
+new_data <- data.frame(Temp=-0.7,Snow=0
+,Humidity=82.8
+,Precip=7.045
+
+)  # Replace with your actual values
+
+# Predict the target variable for the new data point
+predicted_value <- predict(rf_model, new_data)
+
+# Print the predicted value
+print(predicted_value)
+
+```
+PREDICTION GRAPHS OF DIFFERENT MODELS:
+```{r}
+library(randomForest)
+trainIndex <- createDataPartition(crime_data$Crime_Count, p = 0.8, 
+                                  list = FALSE, 
+                                  times = 1)
+dataTrain <- crime_data[trainIndex, ]
+dataTest <- crime_data[-trainIndex, ]
+# Model training
+model_lm <- lm(Crime_Count ~ Temp + Snow + Humidity + Precip, data = dataTrain)
+lr_predictions <- predict(model_lm, dataTest)
+rf_model <- randomForest(Crime_Count ~Temp , data = dataTrain, ntree = 100)
+rf_predictions <- predict(rf_model, dataTest)
+
+ggplot(dataTest) +
+geom_line(aes(x = Temp + Snow + Humidity + Precip, y = Crime_Count), color = "black")+
+  labs(title = "Actual values of the dataset", x = "weather", y = "Crime Count") +
+  theme_minimal()
+
+ggplot(dataTest) +
+  geom_line(aes(x = Temp + Snow + Humidity + Precip, y = lr_predictions), color = "red", linetype = "dashed") +
+  geom_line(aes(x = Temp + Snow + Humidity + Precip, y = Crime_Count), color = "black")+
+  labs(title = "Actual values vs Predicted values of Linear model", x = "weather", y = "Crime Count") +
+  theme_minimal() 
+
+ggplot(dataTest) +
+  geom_line(aes(x = Temp + Snow + Humidity + Precip, y = rf_predictions), color = "blue", linetype = "dashed" )+
+  geom_line(aes(x = Temp + Snow + Humidity + Precip, y = Crime_Count), color = "black")+
+  labs(title = "Actual values vs Predicted values of Random Forest Regression model", x = "weather", y = "Crime Count") +
+  theme_minimal()
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
