@@ -4,20 +4,14 @@ This repository includes data, scripts, and documentation for analyzing and pred
 ## Contents
 - Data Collection and Cleaning: Scripts and methodologies for acquiring and cleaning the crime and weather datasets.
 - Exploratory Data Analysis (EDA): Initial analysis to uncover patterns and insights within the data.
-- ![image](https://github.com/rohansattarapu18/chicago_crime_rate_prediction/assets/168495778/0b21ab7f-2f70-4a20-9989-d51580c1f90b)
-- ![image](https://github.com/rohansattarapu18/chicago_crime_rate_prediction/assets/168495778/23ae3bdf-d0cc-4322-8c20-d7a884ddc729)
-
-
+  ![image](https://github.com/rohansattarapu18/chicago_crime_rate_prediction/assets/168495778/0b21ab7f-2f70-4a20-9989-d51580c1f90b)
+  ![image](https://github.com/rohansattarapu18/chicago_crime_rate_prediction/assets/168495778/23ae3bdf-d0cc-4322-8c20-d7a884ddc729)
 - Feature Engineering: Techniques employed to create predictive features from raw data.
-- ![image](https://github.com/rohansattarapu18/chicago_crime_rate_prediction/assets/168495778/15e43504-23de-431d-9bb3-1853a0f000d1)
-- ![image](https://github.com/rohansattarapu18/chicago_crime_rate_prediction/assets/168495778/e07077be-1d58-4cea-809c-b35c4caeb5cb)
-
-
+  ![image](https://github.com/rohansattarapu18/chicago_crime_rate_prediction/assets/168495778/15e43504-23de-431d-9bb3-1853a0f000d1)
+  ![image](https://github.com/rohansattarapu18/chicago_crime_rate_prediction/assets/168495778/e07077be-1d58-4cea-809c-b35c4caeb5cb)
 - Data Modeling: Implementation of various statistical models including Linear Regression and Random Forest Regression.
-- 
 - Time Series Analysis: Utilization of ARIMA models to understand and predict the temporal patterns of crime.
-- ![image](https://github.com/rohansattarapu18/chicago_crime_rate_prediction/assets/168495778/e6d2dc92-1ecd-445e-90e7-5aaeaf80cbb0)
-
+  ![image](https://github.com/rohansattarapu18/chicago_crime_rate_prediction/assets/168495778/e6d2dc92-1ecd-445e-90e7-5aaeaf80cbb0)
 - Documentation: Detailed project reports and presentation slides explaining the methodologies, results, and implications of the findings.
 
 ## Repository Structure
